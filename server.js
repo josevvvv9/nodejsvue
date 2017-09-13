@@ -1,14 +1,17 @@
-var http = require('http');
-var express = require('express');
-var app = express();
+var express  = require('express')
+    , app    = express()
+    , server = require('http').createServer(app)
+    , io     = require('socket.io').listen(server)
+    , connect = require('connect')
+    , pg     = require('pg')
+    , Client = pg.Client;
 
-app.set('port', process.env.OPENSHIFT_NODEJS_PORT || 8080);
-app.set('ip', process.env.OPENSHIFT_NODEJS_IP || '127.0.0.1');
+// Setup express middleware
+app.use(express.static('public'));
+app.use(connect.logger());
 
-http.createServer(app).listen(app.get('port'), app.get('ip'), function(){
-  console.log('Express server listening on port ' + app.get('port'));
-});
+// Start the server
+var port = process.env.OPENSHIFT_NODEJS_PORT || 8080  
+, ip = process.env.OPENSHIFT_NODEJS_IP || "127.0.0.1";
+server.listen(port, ip);
 
-app.get('/', function (req, res) {
-  res.send('Hello World!');
-});
