@@ -1,0 +1,135 @@
+Iniciar apps Node.js en el arranque de nuestro servidor.
+https://aws.amazon.com/es/getting-started/projects/deploy-nodejs-web-app/
+http://xurxodev.com/como-crear-un-api-rest-con-node-js/
+https://gist.github.com/gomosoft/dc8a2beb4152efe106cb -> lx
+
+https://desarrolloweb.com/articulos/ejecutar-aplicacion-nodejs-pm2.html
+http://pm2.keymetrics.io/
+https://arduinoloja.wordpress.com/2015/12/19/configurar-aplicacion-de-node-js-como-servicio-en-windows/
+
+
+
+
+
+Puedes comenzar echando un vistazo a la página de PM2: http://pm2.keymetrics.io/
+
+Instalar PM2
+Si quieres disponer de tu gestor de procesos en el servidor, tendrás que instalarlo como cualquier otra aplicación Node.
+
+npm install -g pm2
+Una vez instalada disfrutarás de todas las funcionalidades de este process manager, como la posibilidad de parar y arrancar procesos, monitorizarlos en tiempo real, gestionar los log de aplicación, etc.
+
+Arrancar y parar procesos
+Lo primero que debes aprender es a arrancar y detener procesos, o volverlos a arracar cuando sea necesario. Obviamente, en vez de solicitar a Node que ejecute tal o cual fichero, se lo pediremos directamente a PM2.
+
+pm2 start index.js
+Con esto podrás arrancar un proceso, asegurando que tu servidor permanezca encendido. Es habitual que quieras asignar un nombre al proceso, de manera que luego te puedas referir a él en otro tipo de comandos.
+
+pm2 start app.js --name "mi-api"
+Nota: Si no asignaste explícitamente al proceso un nombre, al hacer el "pm2 start" con la opción "--name", se le asignará un nombre igualmente, generado a partir del nombre del archivo que se pone en ejecución, sin la extensión ".js".
+Para detener el proceso se usará el comando stop, indicando el nombre del proceso que quieres parar.
+
+pm2 stop mi-api
+O para reiniciarlo, el comando restart.
+
+pm2 restart mi-api
+Mantenimiento de los procesos
+Tal como lo tienes ahora, gracias a que PM2 controla estos procesos listados, se arrancarán nuevamente en caso de error, manteniéndose encendidos mientras la máquina permanezca encendida. Es decir, en el hipotético caso que uno de ellos se termine por cualquier motivo, como un error en el programa que haga que el proceso se acabe, PM2 lo iniciará de nuevo automáticamente.
+
+Para encontrar información sobre los procesos controlados por PM2 puedes listarlos con el comando list:
+
+pm2 list
+
+
+En la columna "restart" podremos encontrar un contador con el número de veces que se ha reiniciado el proceso. Si ese número crece continuamente querrá decir que PM2 está teniendo que re-arrancar el proceso y será un indicador de que algo no está funcionando bien.
+
+El listado de procesos te da una información interesante, pero para saber qué es lo que está ocurriendo internamente te será generalmente más útil echar un vistazo a los log.
+
+Nota: Nos log no solo te avisan de lo que está ocurriendo, como errores o reinicios de los procesos, también es donde aparecen todos los "console.log()" realizados desde el código de los programas, por lo que también son útiles para debuggear un código.
+La administración de los log en PM2 es bastante configurable. Sin entrar en el tema de la configuración del sistema de logs, rotación de ficheros y esas cosas, es interesante comentar que hay un comando que te permite ver en tiempo real todos los log que se están produciendo en tus procesos.
+
+pm2 log
+Este comando te mostrará los últimos log y se quedará arrancado, mostrando nuevos mensajes que los procesos envíen como salida por consola. En caso de reinicio de un proceso arrancado con PM2 podrás observar en tiempo real cómo el gestor de procesos se encarga de reiniciarlo. En la siguiente imagen tienes un pedazo de salida del seguimiento de logs en tiempo real de PM2 cuando se produce el reinicio de un proceso:
+
+
+
+Como has podido comprobar, tus procesos reinician automáticamente, pero ¿Qué pasaría si la máquina se apaga? Todavía tenemos que configurar un último paso para permitir que los procesos arranquen también con el reinicio de la máquina.
+
+Generación del script de startup
+Para acabar nuestra configuración básica de PM2 necesitamos configurar el script de startup del servidor.
+
+Con tus procesos en marcha, arrancados mediante PM2, ahora puedes generar de manera automatizada el correspondiente script, sin tener que preocuparte por la programación, ya que PM2 lo generará para ti. Para ello tenemos el comando siguiente:
+
+pm2 startup
+Ese comando detectará la plataforma donde estás ejecutando, si es Linux, Mac, Windows y generará el script de arranque. Sin embargo, la detección automática de la plataforma no siempre funciona, o al menos no siempre reconoce la distribución de Linux de tu servidor, por lo que es a veces necesario el informar nuestra plataforma de manera explícita:
+
+pm2 startup centos
+Existen varios valores de plataformas que puedes consultar en la documentación.
+
+En algunos casos me ha tocado hacer después un comando adicional para guardar la lista de procesos, me figuro es cuando necesitas cambiar la lista de procesos después de haber generado el script de startup:
+
+pm2 save
+Configuración de los procesos de tu aplicación
+El siguiente paso para sacarle el partido a PM2 es configurar un archivo con la información de los procesos que tiene que administrar el sistema. En este archivo podemos especificar mucha información útil para el control de los procesos, que se tomará como valores cuando inicien, o ante reinicios.
+
+El formato del archivo lo puedes realizar en JSON, YAML o en código Javascript y puedes encontrar bastante información en la documentación del "process file de PM2".
+
+Lo bueno de este archivo es que permite establecer muchos tipos de configuraciones que no serían posibles de realizar por medio de línea de comandos. Además permite especificar un conjunto de procesos y arrancarlos todos con un único comando.
+
+El archivo puede tener cualquier nombre, por ejemplo "process.json". Por ejemplo este podría ser un posible contenido para la configuración en formato JSON:
+
+{
+  apps : [{
+    name        : "Server",
+    script      : "./server.js",
+    instances: 2,
+    env: {
+      "PORT": "3001"
+    }
+  },
+  {
+    name: "Worker",
+    script: "./worker.js"
+    }]
+}
+Estamos especificando dos procesos y una pequeña muestra de posibles configuraciones. Si quieres arrancar estos procesos de una única vez lanzas el comando:
+
+pm2 start process.json
+De manera similar puedes reiniciar los procesos con "restart" o pararlos con "stop. Como estamos apoyándonos en el archivo de configuración se inician y se paran todos los que se haya indicado, con las opciones configuradas.
+
+Ahora veremos algo básico, pero que necesitarás en la mayoría de tus proyectos, como es la definición de valores para las variables de entorno.
+
+Si por ejemplo quieres definir valores a variables de entorno podrías usar un archivo process.json como este:
+
+{
+  apps : [{
+    name        : "main-app",
+    script      : "./server.js",
+    env: {
+      "NODE_ENV": "development",
+    },
+    env_production : {
+       "NODE_ENV": "production"
+    }
+  }]
+}
+En este archivo estás indicando que la variable de entorno "NODE_ENV" tendrá el valor "development". Pero también estamos indicando que esa misma variable en entorno de producción tenga el valor "production".
+
+Si inicias los procesos sin indicar nada:
+
+pm2 start process.json
+La variable de entorno "NODE_ENV" tendrá como valor "development". En el caso que desees especificar un entorno diferente lo indicarás de esta manera:
+
+pm2 restart process.json --env production
+En este caso la variable "NODE_ENV" tendrá el valor "production".
+
+Conclusión
+Con lo que hemos tratado tendrás suficiente para gestionar los procesos en aplicaciones realizadas con Node, pero detrás de PM2 hay mucho más.
+
+Más adelante podríamos hablar de otras muchas funcionalidades que no hemos tocado y que seguro te vendrá bien conocer, como la gestión de logs, las herramientas de monitorización, el proceso de observación de archivos para rearranque automático cuando el código de la aplicación cambia, las utilidades de deploy, etc.
+
+
+
+C:\Program Files\nodejs\node.exe
+C:\Program Files\nodejs
+C:\WebService\service.js
